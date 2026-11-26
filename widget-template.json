@@ -1,0 +1,12 @@
+{
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {"type": "TextBlock", "text": "${title}", "size": "Small", "isSubtle": true},
+    {"type": "TextBlock", "text": "${pct}", "size": "ExtraLarge", "weight": "Bolder"},
+    {"type": "TextBlock", "text": "${bar}", "wrap": true},
+    {"type": "TextBlock", "text": "${cups}", "isSubtle": true, "size": "Small"}
+  ],
+  "actions": [{"type": "Action.Execute", "title": "+1 cup", "verb": "add"}],
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json"
+}

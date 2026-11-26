@@ -1,0 +1,30 @@
+{
+  "name": "Barista Express Payback",
+  "short_name": "Payback",
+  "description": "Track how many home-made cups it takes for your espresso machine to pay for itself.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#2b1a12",
+  "theme_color": "#2b1a12",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ],
+  "widgets": [
+    {
+      "name": "Payback progress",
+      "short_name": "Payback",
+      "description": "Progress toward paying off your espresso machine",
+      "tag": "payback",
+      "template": "payback-widget",
+      "ms_ac_template": "widget-template.json",
+      "data": "widget-data.json",
+      "type": "application/json",
+      "screenshots": [{"src": "icon-512.png", "sizes": "512x512", "label": "Payback widget"}],
+      "icons": [{"src": "icon-192.png", "sizes": "192x192"}],
+      "auth": false,
+      "update": 3600
+    }
+  ]
+}

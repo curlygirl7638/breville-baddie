@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b1a12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Payback">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Barista Payback</title>
+<style>
+:root{--bg:#2b1a12;--card:#3a251a;--ink:#f6ead9;--mut:#bfa78e;--acc:#e8b27a;--ok:#7fd48b}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,system-ui,sans-serif;
+ padding:max(16px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom));min-height:100vh;display:flex;flex-direction:column;align-items:center}
+main{width:100%;max-width:420px}
+h1{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:8px 0 0;text-align:center;font-weight:600}
+.ring{position:relative;width:240px;height:240px;margin:18px auto 8px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:16;stroke-linecap:round}
+.t{stroke:#4a3326}.p{stroke:var(--acc);transition:stroke-dashoffset .5s,stroke .3s}
+.ring.done .p{stroke:var(--ok)}
+.mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.big{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums}
+.sub{color:var(--mut);font-size:13px}
+.msg{text-align:center;color:var(--mut);margin:0 0 18px;min-height:22px}
+.msg b{color:var(--ink)}
+button.add{width:100%;border:0;border-radius:20px;padding:22px;font-size:22px;font-weight:700;background:var(--acc);color:#2b1a12}
+button.add:active{transform:scale(.97)}
+.row{display:flex;gap:10px;margin-top:10px}
+.sec{flex:1;border:0;border-radius:14px;padding:13px;background:var(--card);color:var(--ink);font-size:15px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.s{background:var(--card);border-radius:14px;padding:12px 14px}
+.s b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+.s span{color:var(--mut);font-size:12px}
+details{margin-top:18px;background:var(--card);border-radius:14px;padding:12px 14px}
+summary{color:var(--mut);cursor:pointer}
+label{display:flex;justify-content:space-between;align-items:center;margin-top:10px;color:var(--mut)}
+input{width:110px;background:#2b1a12;border:1px solid #5a4030;color:var(--ink);border-radius:8px;padding:8px;font-size:16px;text-align:right}
+.hint{font-size:12px;color:var(--mut);text-align:center;margin-top:16px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Barista Express payback</h1>
+  <div class="ring" id="ring">
+    <svg viewBox="0 0 100 100"><circle class="t" cx="50" cy="50" r="42"/><circle class="p" id="arc" cx="50" cy="50" r="42" stroke-dasharray="263.9" stroke-dashoffset="263.9"/></svg>
+    <div class="mid"><div class="big" id="pct">0%</div><div class="sub" id="cups">0 cups</div></div>
+  </div>
+  <p class="msg" id="msg"></p>
+  <button class="add" id="add">☕ +1 cup</button>
+  <div class="row"><button class="sec" id="undo">Undo</button><button class="sec" id="multi">+5 cups</button></div>
+  <div class="stats">
+    <div class="s"><b id="saved">$0.00</b><span>saved so far</span></div>
+    <div class="s"><b id="left">$494.00</b><span>left to break even</span></div>
+    <div class="s"><b id="need">79</b><span>cups to go</span></div>
+    <div class="s"><b id="eta">–</b><span>projected payback</span></div>
+  </div>
+  <details><summary>Settings</summary>
+    <label>Machine cost ($)<input id="cost" type="number" step="0.01" inputmode="decimal"></label>
+    <label>Café latte price ($)<input id="shop" type="number" step="0.01" inputmode="decimal"></label>
+    <label>Home cup cost ($)<input id="home" type="number" step="0.01" inputmode="decimal"></label>
+    <label>Start date<input id="start" type="date"></label>
+    <label style="margin-top:14px"><span></span><button class="sec" id="reset" style="flex:none;color:#ff9b8a">Reset all</button></label>
+  </details>
+  <p class="hint">Each home cup saves you (café price − home cost). Data stays on this device.</p>
+</main>
+<script>
+const KEY='baristaPayback.v1';
+const today=()=>new Date().toISOString().slice(0,10);
+const def={cost:494,shop:8,home:1.74,start:today(),log:[]}; // log: array of ISO timestamps
+let S;
+try{S={...def,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch(e){S={...def}}
+const $=id=>document.getElementById(id);
+const money=n=>(n<0?'-':'')+'$'+Math.abs(n).toFixed(2);
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function calc(){
+  const per=Math.max(0.01,S.shop-S.home), n=S.log.length, saved=n*per;
+  const left=Math.max(0,S.cost-saved), need=Math.max(0,Math.ceil(left/per-1e-9));
+  const frac=Math.min(1,saved/S.cost);
+  let eta=null;
+  if(need>0&&n>=2){
+    const first=new Date(S.log[0]), days=Math.max(1,(Date.now()-first)/864e5);
+    const rate=n/days; if(rate>0) eta=new Date(Date.now()+need/rate*864e5);
+  }
+  return {per,n,saved,left,need,frac,eta};
+}
+function render(){
+  const c=calc();
+  $('arc').style.strokeDashoffset=263.9*(1-c.frac);
+  $('ring').classList.toggle('done',c.need===0);
+  $('pct').textContent=Math.floor(c.frac*100)+'%';
+  $('cups').textContent=c.n+(c.n===1?' cup':' cups');
+  $('saved').textContent=money(c.saved);
+  $('left').textContent=money(c.left);
+  $('need').textContent=c.need;
+  $('eta').textContent=c.need===0?'Paid off 🎉':c.eta?c.eta.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'Log a few more';
+  $('msg').innerHTML=c.need===0
+    ?`Paid off! You're now <b>${money(c.saved-S.cost)}</b> ahead.`
+    :`Each cup saves <b>${money(c.per)}</b> · <b>${c.need}</b> to go`;
+  $('cost').value=S.cost;$('shop').value=S.shop;$('home').value=S.home;$('start').value=S.start;
+  save(); pushWidget(c);
+  if('setAppBadge' in navigator){try{c.need?navigator.setAppBadge(c.need):navigator.clearAppBadge()}catch(e){}}
+}
+function pushWidget(c){
+  // Share stats with the service worker (used by Windows/Edge widgets board)
+  if(!('caches' in window))return;
+  const data={title:'Barista payback',pct:Math.floor(c.frac*100)+'%',saved:money(c.saved),left:money(c.left),
+    cups:c.n+' cups · '+c.need+' to go',bar:'Saved '+money(c.saved)+' of '+money(S.cost)};
+  caches.open('payback-data').then(ch=>ch.put('/widget-data',new Response(JSON.stringify(data)))).then(()=>{
+    if(navigator.serviceWorker&&navigator.serviceWorker.controller)navigator.serviceWorker.controller.postMessage('refresh-widgets');
+  }).catch(()=>{});
+}
+function addCups(k){const t=new Date().toISOString();for(let i=0;i<k;i++)S.log.push(t);render();if(navigator.vibrate)navigator.vibrate(15)}
+$('add').onclick=()=>addCups(1);
+$('undo').onclick=()=>{S.log.pop();render()};
+$('multi').onclick=()=>addCups(5);
+let rt;$('reset').onclick=e=>{const b=e.target;if(b.dataset.armed){S.log=[];delete b.dataset.armed;b.textContent='Reset all';render()}else{b.dataset.armed=1;b.textContent='Tap again to erase';clearTimeout(rt);rt=setTimeout(()=>{delete b.dataset.armed;b.textContent='Reset all'},3000)}};
+[['cost','cost'],['shop','shop'],['home','home']].forEach(([id,k])=>$(id).onchange=e=>{const v=parseFloat(e.target.value);if(v>=0){S[k]=v}render()});
+$('start').onchange=e=>{S.start=e.target.value||S.start;render()};
+render();
+try{if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+</script>
+</body>
+</html>
